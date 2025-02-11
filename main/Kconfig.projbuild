@@ -1,0 +1,11 @@
+menu "Project Configuration"
+
+    menu "BAT I2C Master"
+        config I2C_MASTER_FREQUENCY
+            int "Master Frequency"
+            default 400000
+            help
+                I2C Speed of Master device.
+    endmenu
+
+endmenu
