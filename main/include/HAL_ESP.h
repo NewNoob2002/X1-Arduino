@@ -8,6 +8,8 @@ class HAL_ESP {
     public:
         HAL_ESP();
         ~HAL_ESP();
+
+        void get_task_status();
         void Init_NVS();
         //WIFI CONFIG
         void wifi_Init();

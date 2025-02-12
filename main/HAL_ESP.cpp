@@ -35,6 +35,31 @@ HAL_ESP::~HAL_ESP()
   vSemaphoreDelete(xDisplayMutex);
 }
 
+void HAL_ESP::get_task_status()
+{
+    char InfoBuffer[512] = {0};
+    memset(InfoBuffer, 0, 512); // 信息缓冲区清零
+    vTaskList((char *)&InfoBuffer);
+    printf("任务名  任务状态  优先级  剩余栈  任务序号  cpu核\r\n");
+    printf("\r\n%s\r\n", InfoBuffer);
+
+#if 1
+    char CPU_RunInfo[400] = {0}; // 保存任务运行时间信息
+    memset(CPU_RunInfo, 0, 400); // 信息缓冲区清零
+    vTaskGetRunTimeStats((char *)&CPU_RunInfo);
+    printf("任务名       运行计数         使用率\r\n");
+    printf("%s", CPU_RunInfo);
+    printf("---------------------------------------------\r\n\n");
+#endif
+	
+	//打印剩余ram和堆容量
+    printf("IDLE: ****free internal ram %d  all heap size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_free_size(MALLOC_CAP_8BIT));
+    printf("IDLE: ****free SPIRAM size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+    vTaskDelay((10000) / portTICK_PERIOD_MS);
+
+}
+
 void HAL_ESP::Init_NVS()
 {
   ESP_LOGI("nvs", "nvs_flash_init");
@@ -187,37 +212,51 @@ void HAL_ESP::Config_Server()
   //更新页面
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request)
             {
-              request->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-              esp_restart();
+              if(Update.hasError())
+              {
+                request->send(500, "text/plain", "Update failed");
+              }
+              else
+              {
+                request->send(200, "text/plain", "Update success");
+                vTaskDelay(1000);
+                esp_restart();
+              }
             },
             [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
             {
               static bool updateStarted = false;
               if (!index)
               {
-                ESP_LOGI("update", "Update Start: %s\n", filename.c_str());
-                if(!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)){
-                  Update.printError(Serial);
-                  request->send(500, "text/plain", "BEGIN ERROR");
+                ESP_LOGI("update", "Update Start");
+                uint32_t freeSapce = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+                if (Update.begin(freeSapce, U_FLASH))
+                {
+                  updateStarted = true;
                 }
-                updateStarted = true;
+                else{
+                  Update.printError(Serial);
+                  request->send(500, "text/plain", "存储空间不足");
+                }
               }
-              if (!updateStarted) return;
+
               if (len) {
                 if (Update.write(data, len) != len) {
                   Update.printError(Serial);
-                  request->send(500, "text/plain", "WRITE ERROR");
+                  request->send(500, "text/plain", "写入失败");
                 }
               }
-              if (final)
-              {
+        
+              // 完成升级
+              if (final) {
                 if (!Update.end(true)) {
                   Update.printError(Serial);
-                  request->send(500, "text/plain", "END ERROR");
+                  request->send(500, "text/plain", "升级校验失败");
                 } else {
-                  ESP_LOGI("update", "Update Finish");
+                  Serial.println("固件升级完成");
                 }
               }
+             
             });
 
   

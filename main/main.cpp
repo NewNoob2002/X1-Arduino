@@ -37,8 +37,8 @@ extern "C" void app_main(void)
         // esp32.Start_Wifi_Task();
         wifi_task();
         esp32.Start_Server_Task();
-
-        vTaskDelay(3000);
+        // esp32.get_task_status();
+        vTaskDelay(5000);
         // ESP_LOGI("gpio", "gpio_2 level is %d", digitalRead(GPIO_NUM_2));
         // digitalWrite(GPIO_NUM_2, 1);
 
