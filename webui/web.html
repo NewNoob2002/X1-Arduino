@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 固件升级</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            text-align: center;
+            margin: 50px auto;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+        .upload-box {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+            transition: border-color 0.3s;
+        }
+        .upload-box:hover {
+            border-color: #4CAF50;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+            padding: 10px;
+        }
+        #submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        #submit-btn:disabled {
+            background-color: #9E9E9E;
+            cursor: not-allowed;
+        }
+        .progress {
+            width: 80%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .bar {
+            height: 100%;
+            background: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease, background-color 0.3s;
+        }
+        .status-text {
+            color: #666;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 固件升级</h1>
+    
+    <div class="upload-box">
+        <form id="uploadForm" method="POST" action="/update" enctype="multipart/form-data">
+            <div>
+                <input type="file" id="firmwareFile" name="firmware" accept=".bin" required>
+            </div>
+            <div>
+                <button type="submit" id="submit-btn">开始升级</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="progress">
+        <div class="bar"></div>
+    </div>
+    <div class="status-text" id="status">等待文件上传...</div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('firmwareFile');
+        const submitBtn = document.getElementById('submit-btn');
+        const progressBar = document.querySelector('.bar');
+        const statusText = document.getElementById('status');
+
+        // 验证文件类型
+        function validateFile(file) {
+            const allowedTypes = ['application/octet-stream', 'application/x-binary'];
+            const maxSize = 4 * 1024 * 1024; // 4MB
+            
+            if (!file.name.endsWith('.bin')) {
+                alert('错误：请选择.bin格式的固件文件');
+                return false;
+            }
+            
+            if (file.size > maxSize) {
+                alert('错误：文件大小不能超过4MB');
+                return false;
+            }
+            
+            return true;
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file || !validateFile(file)) return;
+
+            submitBtn.disabled = true;
+            statusText.textContent = '上传中...';
+            progressBar.style.width = '0%';
+            progressBar.style.backgroundColor = '#4CAF50';
+
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData(form);
+
+            xhr.upload.addEventListener('progress', function(evt) {
+                if (evt.lengthComputable) {
+                    const percent = Math.round((evt.loaded / evt.total) * 100);
+                    progressBar.style.width = percent + '%';
+                }
+            });
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    submitBtn.disabled = false;
+                    if (xhr.status === 200) {
+                        progressBar.style.backgroundColor = '#4CAF50';
+                        statusText.textContent = '升级成功，设备即将重启...';
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        progressBar.style.backgroundColor = '#f44336';
+                        statusText.textContent = `升级失败: ${xhr.responseText || '未知错误'}`;
+                    }
+                }
+            };
+
+            xhr.open('POST', '/update', true);
+            xhr.send(formData);
+        });
+
+        // 文件选择变化时显示文件名
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                statusText.textContent = `已选择文件: ${this.files[0].name}`;
+            }
+        });
+    </script>
+</body>
+</html>

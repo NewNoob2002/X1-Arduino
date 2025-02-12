@@ -5,7 +5,22 @@
 
 static void button_event_cb(void *arg, void *data)
 {
-  iot_button_print_event((button_handle_t)arg);
+  ESP_LOGI("double_click", "double_click");
+  esp32.Wifi_ReStart();
+  digitalWrite(GPIO_NUM_2, 1);
+}
+
+static void button_single_event_cb(void *arg, void *data)
+{
+  esp32.STOP_Wifi();
+  digitalWrite(GPIO_NUM_2, 0);
+  ESP_LOGI("single_click", "single_click");
+}
+
+static void button_long_event_cb(void *arg, void *data)
+{
+
+  ESP_LOGI("single_click", "single_click");
 }
 
 HAL_ESP::HAL_ESP()
@@ -18,11 +33,6 @@ HAL_ESP::~HAL_ESP()
 {
   vSemaphoreDelete(xVSPIMutex);
   vSemaphoreDelete(xDisplayMutex);
-}
-
-void HAL_ESP::SayHello()
-{
-  ESP_LOGI("HAL_ESP", "Hello World");
 }
 
 void HAL_ESP::Init_NVS()
@@ -53,107 +63,226 @@ void HAL_ESP::Init_NVS()
   {
     ESP_LOGI("nvs", "Failed to initialize NVS! Error: %u", err);
   }
+//文件系统初始化
+  if(LittleFS.begin(true, "/www", 10, "webfs"))
+  {
+    ESP_LOGI("littlefs info", "Fs Init Ok");
+    ESP_LOGI("littlefs info", "Partition size: total: %d, used: %d", 
+            LittleFS.totalBytes(), LittleFS.usedBytes());
+  }
 }
 
-void HAL_ESP::Init_StartWifi()
+void HAL_ESP::wifi_Init()
 {
-  const esp_netif_ip_info_t netif_soft_ap_ip = {
-      .ip = {.addr = ESP_IP4TOADDR(192, 168, 10, 12)},
-      .netmask = {.addr = ESP_IP4TOADDR(255, 255, 255, 0)},
-      .gw = {.addr = ESP_IP4TOADDR(192, 168, 10, 12)}
+  ESP_ERROR_CHECK(esp_netif_init());
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+  esp_netif_t *netif = esp_netif_new(&netif_config);
+  assert(netif);
+  ESP_ERROR_CHECK(esp_netif_attach_wifi_ap(netif));
+  ESP_ERROR_CHECK(esp_wifi_set_default_wifi_ap_handlers());
+  // esp_netif_create_default_wifi_ap();
 
-  };
+  wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
+  // esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+  //                                     &event_handler, NULL, NULL);
+}
 
-  const esp_netif_inherent_config_t _esp_netif_inherent_ap_config = {
-      .flags = (esp_netif_flags_t)(ESP_NETIF_IPV4_ONLY_FLAGS(ESP_NETIF_DHCP_SERVER) | ESP_NETIF_FLAG_AUTOUP),
-      .mac = {0},
-      .ip_info = &netif_soft_ap_ip,
-      .get_ip_event = 0,
-      .lost_ip_event = 0,
-      .if_key = "WIFI_AP_DEF",
-      .if_desc = "ap",
-      .route_prio = 10,
-      .bridge_info = NULL};
+WIFI_STAT HAL_ESP::Start_Wifi()
+{
+  if (_wifi_config._state == WIFI_RUNing)
+    return WIFI_RUNing;
 
-  const esp_netif_config_t netif_config = {
-      .base = &_esp_netif_inherent_ap_config,
-      .driver = NULL,
-      .stack = ESP_NETIF_NETSTACK_DEFAULT_WIFI_STA,
-  };
-  
-  if (wifi_status == WIFI_NAN || wifi_status == WIFI_STOP)
+  uint8_t pass_len = sizeof(_wifi_config._config.ap.password);
+
+  if (pass_len > 0 && pass_len < 9)
   {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *netif = esp_netif_new(&netif_config);
-    assert(netif);
-    ESP_ERROR_CHECK(esp_netif_attach_wifi_ap(netif));
-    ESP_ERROR_CHECK(esp_wifi_set_default_wifi_ap_handlers());
-    // esp_netif_create_default_wifi_ap();
-
-    wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
-
-    wifi_config = {
-        .ap = {
-            .ssid = wifi_name,
-            .password = wifi_password,
-            .ssid_len = uint8_t(strlen(wifi_name)),
-            .channel = WIFI_CHANNEL,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
-            .max_connection = WIFI_MAX_CONN,
-            .beacon_interval = 100}
-          };
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    
-    esp_err_t ret = esp_wifi_start();
-    if (ret == ESP_OK)
-    {
-      ESP_LOGI("wifi_start", "wifi name: %s, wifi password: %s", wifi_name, wifi_password);
-      wifi_status = WIFI_RUNing;
-    }
+    ESP_LOGE("wifi", "Password too short");
+    _wifi_config._state = WIFI_ERROR;
+    return WIFI_ERROR;
   }
-  else if (wifi_status == WIFI_RUNing)
+
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &_wifi_config._config));
+
+  esp_err_t ret = esp_wifi_start();
+  if (ret != ESP_OK)
   {
-    ESP_LOGI("wifi_start", "wifi is already running");
-    return;
+    return WIFI_ERROR;
+    ESP_LOGI("wifi_start_error", "wifi_start_error");
   }
-  else
-  {
-    ESP_LOGI("wifi_start", "wifi status error");
-    wifi_status = WIFI_ERROR;
-    return;
-  }
+  _wifi_config._state = WIFI_RUNing;
+  return _wifi_config._state;
 }
 
 void HAL_ESP::STOP_Wifi()
 {
-  switch (wifi_status)
-  {
-  case WIFI_NAN:
-    break;
-  case WIFI_STOP:
-    break;
-  case WIFI_RUNing:
-    esp_wifi_stop();
-    wifi_status = WIFI_STOP;
-    ESP_LOGI("wifi_stop", "wifi stop");
-    break;
-
-  default:
-    wifi_status = WIFI_ERROR;
-    break;
+  if (_wifi_config._state == WIFI_STOP) return;
+    
+  esp_err_t ret = esp_wifi_stop();
+  if (ret != ESP_OK) {
+      ESP_LOGE("wifi_stop", "AP stop failed: %s", esp_err_to_name(ret));
+      _wifi_config._state = WIFI_ERROR;
+  } else {
+    _wifi_config._state = WIFI_STOP;
   }
 }
 
-WIFI_STAT HAL_ESP::GetWifiStatus()
+void HAL_ESP::Wifi_ReStart()
 {
+  if(_wifi_config._state == WIFI_ERROR) return;
   
-  return wifi_status;
+  ESP_LOGI("wifi", "wifi restart");
+  STOP_Wifi();
+  vTaskDelay(2000);
+
+  for(int i = 0; i<3; i++)
+  {
+    if(Start_Wifi() == WIFI_RUNing)
+    {
+      ESP_LOGI("wifi", "wifi restart success");
+      break;
+    }
+    vTaskDelay(5000);
+  }
+  return;
 }
+
+void HAL_ESP::Config_Server()
+{
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { 
+              String html = "";
+              File file = LittleFS.open("/root.html", "r");
+            if (!file)
+              {
+                request->send(500, "text/plain", "Failed to open file");
+                return;
+              }
+              while (file.available()) {
+                html += (char)file.read();
+              }
+              // const String html_read = html;
+              // request->send(200, "text/html", html); // 返回 HTML 内容
+          file.close();
+          request->send(200, "text/html", html);
+          });
+  server.on("/upgrade", HTTP_GET, [](AsyncWebServerRequest *request)
+            { 
+              String html = "";
+              File file = LittleFS.open("/web.html", "r");
+            if (!file)
+              {
+                request->send(500, "text/plain", "Failed to open file");
+                return;
+              }
+              while (file.available()) {
+                html += (char)file.read();
+              }
+              // const String html_read = html;
+              // request->send(200, "text/html", html); // 返回 HTML 内容
+          file.close();
+          request->send(200, "text/html", html);
+          });
+  //更新页面
+  server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
+              request->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+              esp_restart();
+            },
+            [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+            {
+              static bool updateStarted = false;
+              if (!index)
+              {
+                ESP_LOGI("update", "Update Start: %s\n", filename.c_str());
+                if(!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)){
+                  Update.printError(Serial);
+                  request->send(500, "text/plain", "BEGIN ERROR");
+                }
+                updateStarted = true;
+              }
+              if (!updateStarted) return;
+              if (len) {
+                if (Update.write(data, len) != len) {
+                  Update.printError(Serial);
+                  request->send(500, "text/plain", "WRITE ERROR");
+                }
+              }
+              if (final)
+              {
+                if (!Update.end(true)) {
+                  Update.printError(Serial);
+                  request->send(500, "text/plain", "END ERROR");
+                } else {
+                  ESP_LOGI("update", "Update Finish");
+                }
+              }
+            });
+
+  
+}
+
+void HAL_ESP::Start_Server_Task()
+{
+  switch (Server_status)
+  {
+    case Server_STOP:
+      if(_wifi_config._state == WIFI_RUNing){
+        server.begin();
+        ESP_LOGI("server", "server start");
+        Server_status = Server_RUNing;
+      }
+      else if(_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP){
+        ESP_LOGI("server", "wifi is in error|stop state, can't start server");
+      }
+      break;
+    case Server_RUNing:
+      if(_wifi_config._state == WIFI_RUNing){
+        ESP_LOGI("server", "server is  running");
+        return;
+      }
+      else if(_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP){
+        ESP_LOGI("server", "wifi is in error|stop state, so stop server");
+        Stop_Server_Task();
+        Server_status = Server_STOP;
+        return;
+      }
+  }
+}
+
+void HAL_ESP::Stop_Server_Task()
+{
+  server.end();
+  ESP_LOGI("server", "server stop");
+  return;
+}
+
+WIFI_STAT HAL_ESP::Get_Wifi_Status()
+{
+
+  return _wifi_config._state;
+}
+
+uint8_t HAL_ESP::Get_Wifi_Retry_Count()
+{
+  return _wifi_config.retry_count;
+}
+
+void HAL_ESP::BT_Begin(const char *device_name)
+{
+  BT.begin(device_name);
+}
+
+void HAL_ESP::BT_Write(const uint8_t *buffer, size_t size)
+{
+  BT.write(buffer, size);
+}
+
+// void HAL_ESP::BT_Write(const char *data, uint32_t size)
+// {
+//   BT.write(data);
+// }
 
 void HAL_ESP::ConfigPins()
 {
@@ -167,19 +296,7 @@ void HAL_ESP::ConfigPins()
   // digitalWrite(MCU_BAT_POWER_Pin, HIGH);
   // 按键设置
 
-  gpio_config_t led_status =
-      {
-          .pin_bit_mask = GPIO_NUM_2,
-          .mode = GPIO_MODE_OUTPUT,
-          .pull_up_en = GPIO_PULLUP_DISABLE,
-          .pull_down_en = GPIO_PULLDOWN_DISABLE,
-          .intr_type = GPIO_INTR_DISABLE,
-
-      };
-
-  gpio_config(&led_status);
-
-  gpio_set_level(GPIO_NUM_2, 1);
+  pinMode(GPIO_NUM_2, OUTPUT);
 
   button_config_t btn_cfg = {
       .long_press_time = 1000,
@@ -194,17 +311,10 @@ void HAL_ESP::ConfigPins()
   esp_err_t ret = iot_button_new_gpio_device(&btn_cfg, &gpio_cfg, &btn);
   assert(ret == ESP_OK);
 
-  ret = iot_button_register_cb(btn, BUTTON_PRESS_DOWN, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_PRESS_UP, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_PRESS_REPEAT, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_PRESS_REPEAT_DONE, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_SINGLE_CLICK, NULL, button_event_cb, NULL);
+  ret |= iot_button_register_cb(btn, BUTTON_SINGLE_CLICK, NULL, button_single_event_cb, NULL);
   ret |= iot_button_register_cb(btn, BUTTON_DOUBLE_CLICK, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_LONG_PRESS_START, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_LONG_PRESS_HOLD, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_LONG_PRESS_UP, NULL, button_event_cb, NULL);
-  ret |= iot_button_register_cb(btn, BUTTON_PRESS_END, NULL, button_event_cb, NULL);
-  // 状态灯
+  ret |= iot_button_register_cb(btn, BUTTON_LONG_PRESS_HOLD, NULL, button_long_event_cb, NULL);
+  // //状态灯
   //  pinMode(POWER_LED_Pin, OUTPUT);
   //  pinMode(CHARGER_LED_Pin, OUTPUT);
   //  pinMode(NET_LED_Pin, OUTPUT);

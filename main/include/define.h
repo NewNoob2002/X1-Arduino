@@ -1,6 +1,7 @@
 #ifndef DEFINES_H_
 #define DEFINES_H_
 
+#include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "string.h"
@@ -12,8 +13,11 @@
 #include "esp_netif.h"
 #include "lwip/sys.h"
 #include "lwip/inet.h"
-#include <esp_http_server.h>
+#include <ESPAsyncWebServer.h>
+#include "Update.h"
+#include "LittleFS.h"
 
+#include "BluetoothSerial.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
@@ -97,35 +101,36 @@ static const bool esp_spp_enable_l2cap_ertm = true;
 #define LCD_BLK_Pin             14
 #endif // DEBUG
 
-struct wifi_eeprom_settings
-{
-  char wifi_ssid[32 + 1];
-  char wifi_passphrase[63 + 1];
-  uint32_t wifi_ip;
-  uint32_t wifi_netmask;
-  uint32_t wifi_gateway;
-  uint32_t wifi_dns1;
-  uint32_t wifi_dns2;
-  uint8_t manualConfig;
-};
 
 typedef enum {
-  WIFI_NAN=0,
-  WIFI_RUNing,
+  WIFI_RUNing=0,
   WIFI_STOP,
   WIFI_ERROR
 }WIFI_STAT;
 
 typedef enum {
-  BT_NAN=0,
-  BT_RUNing,
+  BT_RUNing=0,
   BT_STOP,
   BT_ERROR
 }BT_STAT;
+
+typedef enum {
+  Server_RUNing=0,
+  Server_STOP,
+}Server_STAT;
+
+typedef struct {
+  WIFI_STAT _state;
+  wifi_config_t _config;
+  uint8_t retry_count;
+} AP_Config_t;
 // typedef struct {
 //   i2c_device_config_t bat_device;
 //   uint8_t bat_i2c_addr;
 //   uint8_t write_time_ms;
 // }i2c_bat_config_t;
+
+extern AsyncWebServer server;
+extern BluetoothSerial BT;
 
 #endif
