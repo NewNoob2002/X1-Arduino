@@ -458,11 +458,16 @@ void HAL_ESP::ConfigI2c()
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &bat_device, &i2c_Bat_handle));
 }
 
-error_t HAL_ESP::Write_BAT_Reg(uint16_t reg, const uint8_t *data, uint32_t size)
+esp_err_t HAL_ESP::Write_BAT_Reg_Byte(uint8_t reg, const uint8_t value)
 {
+  uint8_t data[2] = {reg, value};
+  esp_err_t error = i2c_master_transmit(i2c_Bat_handle, data, sizeof(data), 1000);
+  return error;
+}
 
-  i2c_master_transmit(i2c_Bat_handle, data, size, 1000);
-  return error_t();
+esp_err_t HAL_ESP::Read_BAT_Reg_Byte(uint8_t reg, uint8_t *value, size_t len)
+{
+  return i2c_master_transmit_receive(i2c_Bat_handle, &reg, 1, value, len, 1000);
 }
 
 void HAL_ESP::ConfigSPI()

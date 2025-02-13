@@ -31,7 +31,8 @@ class HAL_ESP {
         void ConfigPins();
         //BAT I2c
         void ConfigI2c();
-        error_t Write_BAT_Reg(uint16_t reg, const uint8_t *data, uint32_t size);
+        esp_err_t Write_BAT_Reg_Byte(uint8_t reg, const uint8_t value);
+        esp_err_t Read_BAT_Reg_Byte(uint8_t reg, uint8_t *value, size_t len);
         void ConfigSPI();
     private:
         // Private members and methods

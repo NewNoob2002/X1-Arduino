@@ -29,7 +29,7 @@ extern "C" void app_main(void)
 
     esp32.Init_NVS();
     esp32.ConfigPins();
-    // esp32.ConfigI2c();
+    esp32.ConfigI2c();
     esp32.wifi_Init();
     esp32.Config_Server();
     WIFI_STAT wifi_status = esp32.Start_Wifi();

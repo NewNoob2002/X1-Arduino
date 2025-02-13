@@ -90,8 +90,8 @@ static const bool esp_spp_enable_l2cap_ertm = true;
 /*电池引脚*/
 #define Charge_Status_Pin       2
 #define MCU_BAT_POWER_Pin       6
-#define BAT_I2C_SDA_Pin         GPIO_NUM_20
-#define BAT_I2C_SCL_Pin         GPIO_NUM_21
+#define BAT_I2C_SDA_Pin         GPIO_NUM_21
+#define BAT_I2C_SCL_Pin         GPIO_NUM_22
 
 #if LCD
 #define LCD_SCK_Pin             12
