@@ -278,6 +278,7 @@ void HAL_ESP::Start_Server_Task()
       break;
     case Server_RUNing:
       if(_wifi_config._state == WIFI_RUNing){
+        digitalWrite(GPIO_NUM_2, 0);
         ESP_LOGI("server", "server is  running");
         return;
       }

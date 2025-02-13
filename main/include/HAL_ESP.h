@@ -48,12 +48,12 @@ class HAL_ESP {
         ._state = WIFI_STOP,
         ._config = { 
           .ap = {
-            .ssid = wifi_name,
+            .ssid = Device_name,
             .password = wifi_password,
-            .ssid_len = uint8_t(strlen(wifi_name)),
-            .channel = WIFI_CHANNEL,
+            .ssid_len = uint8_t(strlen(Device_name)),
+            .channel = 1,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK,
-            .max_connection = WIFI_MAX_CONN,
+            .max_connection = 2,
             .beacon_interval = 100},
         },
         .retry_count = 0,

@@ -38,12 +38,9 @@
 
 #define Hardware_version "V1.0.0"
 #define Software_version "V1.0.0"
-#define WIFI_SSID      "mywifi"
-#define WIFI_PASS      "12345678"
-#define WIFI_CHANNEL        1
-#define WIFI_MAX_CONN       2
 
-#define wifi_name "my_test-wifi"
+
+#define Device_name "my_test-wifi"
 #define wifi_password "12345678"
 
 //蓝牙

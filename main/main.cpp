@@ -3,10 +3,13 @@
 
  HAL_ESP esp32;
  AsyncWebServer server(80);
+ BluetoothSerial SerialBT;
+
 static void wifi_task(void)
 {
     switch (esp32.Get_Wifi_Status()) {
         case WIFI_RUNing:
+            digitalWrite(GPIO_NUM_2, 1);
             ESP_LOGI("wifi", "wifi is running");
             break;
         case WIFI_ERROR:
@@ -14,10 +17,12 @@ static void wifi_task(void)
             esp32.Wifi_ReStart();
             break;
         case WIFI_STOP:
+            SerialBT.begin(Device_name, false, true);
             ESP_LOGI("wifi", "wifi is stop");
             break;
     }
 }
+
 extern "C" void app_main(void)
 {
     esp32.Init_NVS();
@@ -36,9 +41,11 @@ extern "C" void app_main(void)
         // ESP_LOGI("main", "wifi is %d", esp32.GetWifiStatus());
         // esp32.Start_Wifi_Task();
         wifi_task();
+        vTaskDelay(1000);
         esp32.Start_Server_Task();
+        vTaskDelay(1000);
         // esp32.get_task_status();
-        vTaskDelay(5000);
+        
         // ESP_LOGI("gpio", "gpio_2 level is %d", digitalRead(GPIO_NUM_2));
         // digitalWrite(GPIO_NUM_2, 1);
 
