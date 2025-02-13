@@ -3,6 +3,7 @@
 
 #define MASTER_FREQUENCY CONFIG_I2C_MASTER_FREQUENCY
 
+// button callback
 static void button_event_cb(void *arg, void *data)
 {
   ESP_LOGI("double_click", "double_click");
@@ -37,27 +38,78 @@ HAL_ESP::~HAL_ESP()
 
 void HAL_ESP::get_task_status()
 {
-    char InfoBuffer[512] = {0};
-    memset(InfoBuffer, 0, 512); // 信息缓冲区清零
-    vTaskList((char *)&InfoBuffer);
-    printf("任务名  任务状态  优先级  剩余栈  任务序号  cpu核\r\n");
-    printf("\r\n%s\r\n", InfoBuffer);
+  char InfoBuffer[512] = {0};
+  memset(InfoBuffer, 0, 512); // 信息缓冲区清零
+  vTaskList((char *)&InfoBuffer);
+  printf("任务名  任务状态  优先级  剩余栈  任务序号  cpu核\r\n");
+  printf("\r\n%s\r\n", InfoBuffer);
 
 #if 1
-    char CPU_RunInfo[400] = {0}; // 保存任务运行时间信息
-    memset(CPU_RunInfo, 0, 400); // 信息缓冲区清零
-    vTaskGetRunTimeStats((char *)&CPU_RunInfo);
-    printf("任务名       运行计数         使用率\r\n");
-    printf("%s", CPU_RunInfo);
-    printf("---------------------------------------------\r\n\n");
+  char CPU_RunInfo[400] = {0}; // 保存任务运行时间信息
+  memset(CPU_RunInfo, 0, 400); // 信息缓冲区清零
+  vTaskGetRunTimeStats((char *)&CPU_RunInfo);
+  printf("任务名       运行计数         使用率\r\n");
+  printf("%s", CPU_RunInfo);
+  printf("---------------------------------------------\r\n\n");
 #endif
-	
-	//打印剩余ram和堆容量
-    printf("IDLE: ****free internal ram %d  all heap size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_free_size(MALLOC_CAP_8BIT));
-    printf("IDLE: ****free SPIRAM size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-    vTaskDelay((10000) / portTICK_PERIOD_MS);
+  // 打印剩余ram和堆容量
+  printf("IDLE: ****free internal ram %d  all heap size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_free_size(MALLOC_CAP_8BIT));
+  printf("IDLE: ****free SPIRAM size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
+  vTaskDelay((10000) / portTICK_PERIOD_MS);
+}
+
+void HAL_ESP::Check_Image_Status()
+{
+  static bool IS_First_Run = true;
+
+  if (IS_First_Run == true){
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state;
+    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK){
+      if (ota_state == ESP_OTA_IMG_PENDING_VERIFY){
+        // run diagnostic function ...
+        bool diagnostic_is_ok = check_peripherals();
+        if (diagnostic_is_ok){
+          ESP_LOGI("Update", "Diagnostics completed successfully! Continuing execution ...");
+          esp_ota_mark_app_valid_cancel_rollback();
+        }
+        else{
+          ESP_LOGE("Update", "Diagnostics failed! Start rollback to the previous version ...");
+          esp_ota_mark_app_invalid_rollback_and_reboot();
+        }
+      }
+      else if (ota_state == ESP_OTA_IMG_VALID){
+        ESP_LOGI("Update", "OTA image is valid! ");
+        IS_First_Run = false;
+        return;
+      }
+    }
+  }
+
+}
+
+bool HAL_ESP::check_peripherals()
+{
+  bool ret = false;
+  // 检查电池I2c
+  // check 蓝牙
+  // check 串口
+  // check wifi
+  switch (esp32.Get_Wifi_Status())
+  {
+  case WIFI_RUNing:
+    ret = true;
+    break;
+  case WIFI_STOP:
+    ret = false;
+    break;
+  default:
+    break;
+  }
+  // Check your peripherals here
+  return true;
 }
 
 void HAL_ESP::Init_NVS()
@@ -74,26 +126,14 @@ void HAL_ESP::Init_NVS()
       {
         err = nvs_flash_init();
       }
-      else
-      {
-        ESP_LOGI("nvs", "Failed to format the broken NVS partition!");
-      }
-    }
-    else
-    {
-      ESP_LOGI("nvs", "Could not find NVS partition");
     }
   }
-  if (err)
-  {
-    ESP_LOGI("nvs", "Failed to initialize NVS! Error: %u", err);
-  }
-//文件系统初始化
-  if(LittleFS.begin(true, "/www", 10, "webfs"))
+  // 文件系统初始化
+  if (LittleFS.begin(true, "/www", 10, "webfs"))
   {
     ESP_LOGI("littlefs info", "Fs Init Ok");
-    ESP_LOGI("littlefs info", "Partition size: total: %d, used: %d", 
-            LittleFS.totalBytes(), LittleFS.usedBytes());
+    ESP_LOGI("littlefs info", "Partition size: total: %d, used: %d",
+             LittleFS.totalBytes(), LittleFS.usedBytes());
   }
 }
 
@@ -142,28 +182,33 @@ WIFI_STAT HAL_ESP::Start_Wifi()
 
 void HAL_ESP::STOP_Wifi()
 {
-  if (_wifi_config._state == WIFI_STOP) return;
-    
+  if (_wifi_config._state == WIFI_STOP)
+    return;
+
   esp_err_t ret = esp_wifi_stop();
-  if (ret != ESP_OK) {
-      ESP_LOGE("wifi_stop", "AP stop failed: %s", esp_err_to_name(ret));
-      _wifi_config._state = WIFI_ERROR;
-  } else {
+  if (ret != ESP_OK)
+  {
+    ESP_LOGE("wifi_stop", "AP stop failed: %s", esp_err_to_name(ret));
+    _wifi_config._state = WIFI_ERROR;
+  }
+  else
+  {
     _wifi_config._state = WIFI_STOP;
   }
 }
 
 void HAL_ESP::Wifi_ReStart()
 {
-  if(_wifi_config._state == WIFI_ERROR) return;
-  
+  if (_wifi_config._state == WIFI_ERROR)
+    return;
+
   ESP_LOGI("wifi", "wifi restart");
   STOP_Wifi();
   vTaskDelay(2000);
 
-  for(int i = 0; i<3; i++)
+  for (int i = 0; i < 3; i++)
   {
-    if(Start_Wifi() == WIFI_RUNing)
+    if (Start_Wifi() == WIFI_RUNing)
     {
       ESP_LOGI("wifi", "wifi restart success");
       break;
@@ -190,8 +235,7 @@ void HAL_ESP::Config_Server()
               // const String html_read = html;
               // request->send(200, "text/html", html); // 返回 HTML 内容
           file.close();
-          request->send(200, "text/html", html);
-          });
+          request->send(200, "text/html", html); });
   server.on("/upgrade", HTTP_GET, [](AsyncWebServerRequest *request)
             { 
               String html = "";
@@ -207,9 +251,8 @@ void HAL_ESP::Config_Server()
               // const String html_read = html;
               // request->send(200, "text/html", html); // 返回 HTML 内容
           file.close();
-          request->send(200, "text/html", html);
-          });
-  //更新页面
+          request->send(200, "text/html", html); });
+  // 更新页面
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request)
             {
               if(Update.hasError())
@@ -219,75 +262,104 @@ void HAL_ESP::Config_Server()
               else
               {
                 request->send(200, "text/plain", "Update success");
-                vTaskDelay(1000);
+                vTaskDelay(3000);
                 esp_restart();
-              }
-            },
-            [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+              } }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
             {
-              static bool updateStarted = false;
+              // const esp_partition_t *running = esp_ota_get_running_partition();
+              esp_ota_handle_t update_handle = 0;
+              bool update_started = false;
+              const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
+              ESP_LOGI("OTA", "OTA 更新分区: %s", update_partition->label);
               if (!index)
               {
-                ESP_LOGI("update", "Update Start");
-                uint32_t freeSapce = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-                if (Update.begin(freeSapce, U_FLASH))
+                ESP_LOGI("OTA", "开始 OTA 更新，文件名: %s", filename.c_str());
+                assert(update_partition != NULL);
+                ESP_LOGI("OTA", "Writing to partition subtype %d at offset 0x%"PRIx32,
+                  update_partition->subtype, update_partition->address);
+
+                esp_err_t ret = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
+                if (ret != ESP_OK)
                 {
-                  updateStarted = true;
+                  ESP_LOGE("OTA", "OTA 初始化失败: 0x%x", ret);
+                  request->send(500, "text/plain", "OTA 初始化失败");
+                  esp_ota_abort(update_handle);
+                  return;
                 }
-                else{
-                  Update.printError(Serial);
-                  request->send(500, "text/plain", "存储空间不足");
-                }
+                update_started = true;
               }
 
-              if (len) {
-                if (Update.write(data, len) != len) {
-                  Update.printError(Serial);
-                  request->send(500, "text/plain", "写入失败");
+              if (!update_started)
+                return;
+
+              if (len > 0)
+              {
+                esp_err_t write_err = esp_ota_write(update_handle, data, len);
+                if (write_err != ESP_OK)
+                {
+                  ESP_LOGE("OTA", "数据块写入失败: 0x%x", write_err);
+                  esp_ota_abort(update_handle);
+                  request->send(500, "text/plain", "数据写入失败");
+                  update_started = false;
+                  return;
                 }
+                ESP_LOGI("OTA", "数据块写入成功: %d", len);
               }
-        
+
               // 完成升级
-              if (final) {
-                if (!Update.end(true)) {
-                  Update.printError(Serial);
-                  request->send(500, "text/plain", "升级校验失败");
-                } else {
-                  Serial.println("固件升级完成");
+              if (final)
+              {
+                esp_err_t end_err = esp_ota_end(update_handle);
+                if(end_err != ESP_OK)
+                {
+                  ESP_LOGE("OTA", "固件验证失败: 0x%x", end_err);
+                  request->send(500, "text/plain", "固件校验失败");
+                  return;
                 }
-              }
-             
-            });
-
-  
+                  ESP_LOGI("OTA", "固件验证成功");
+                  request -> send(200, "text/plain", "固件验证成功, 设备重启中...");
+                  esp_err_t set_boot_err = esp_ota_set_boot_partition(update_partition);
+                    if (set_boot_err != ESP_OK)
+                    {
+                    ESP_LOGE("OTA", "启动分区设置失败: 0x%x", set_boot_err);
+                    request->send(500, "text/plain", "启动配置失败");
+                    }
+                  esp_restart();
+                }
+                update_started = false;
+              });
 }
 
 void HAL_ESP::Start_Server_Task()
 {
   switch (Server_status)
   {
-    case Server_STOP:
-      if(_wifi_config._state == WIFI_RUNing){
-        server.begin();
-        ESP_LOGI("server", "server start");
-        Server_status = Server_RUNing;
-      }
-      else if(_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP){
-        ESP_LOGI("server", "wifi is in error|stop state, can't start server");
-      }
-      break;
-    case Server_RUNing:
-      if(_wifi_config._state == WIFI_RUNing){
-        digitalWrite(GPIO_NUM_2, 0);
-        ESP_LOGI("server", "server is  running");
-        return;
-      }
-      else if(_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP){
-        ESP_LOGI("server", "wifi is in error|stop state, so stop server");
-        Stop_Server_Task();
-        Server_status = Server_STOP;
-        return;
-      }
+  case Server_STOP:
+    if (_wifi_config._state == WIFI_RUNing)
+    {
+      server.begin();
+      ESP_LOGI("server", "server start");
+      Server_status = Server_RUNing;
+    }
+    else if (_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP)
+    {
+      ESP_LOGI("server", "wifi is in error|stop state, can't start server");
+    }
+    break;
+  case Server_RUNing:
+    if (_wifi_config._state == WIFI_RUNing)
+    {
+      digitalWrite(GPIO_NUM_2, 0);
+      // ESP_LOGI("server", "server is  running");
+      return;
+    }
+    else if (_wifi_config._state == WIFI_ERROR || _wifi_config._state == WIFI_STOP)
+    {
+      ESP_LOGI("server", "wifi is in error|stop state, so stop server");
+      Stop_Server_Task();
+      Server_status = Server_STOP;
+      return;
+    }
   }
 }
 

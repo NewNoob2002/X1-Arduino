@@ -14,8 +14,11 @@
 #include "lwip/sys.h"
 #include "lwip/inet.h"
 #include <ESPAsyncWebServer.h>
+#include "esp_ota_ops.h"
 #include "Update.h"
 #include "LittleFS.h"
+
+
 
 #include "BluetoothSerial.h"
 #include "esp_bt.h"

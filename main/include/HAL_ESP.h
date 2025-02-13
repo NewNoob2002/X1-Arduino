@@ -10,6 +10,8 @@ class HAL_ESP {
         ~HAL_ESP();
 
         void get_task_status();
+        void Check_Image_Status();
+        bool check_peripherals();
         void Init_NVS();
         //WIFI CONFIG
         void wifi_Init();
