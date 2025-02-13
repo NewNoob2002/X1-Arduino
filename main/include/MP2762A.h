@@ -9,15 +9,7 @@ typedef struct {
     uint16_t ovp; // mV
   } MP2762A_config_t;
 
-class MP2762A {
-    public:
-        MP2762A();
-        ~MP2762A();
-        int MP2762_Init(void);
-    private:
-        MP2762A_config_t config;
-        // Private members and methods
-};
+int bq769x0_reg_update_byte(uint8_t reg, uint8_t mask, uint8_t value);
 
 
 #endif // MP2762A_H
