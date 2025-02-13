@@ -8,4 +8,12 @@ menu "Project Configuration"
                 I2C Speed of Master device.
     endmenu
 
+    menu "APP_Version"
+        config APP_VERSION
+            string "APP_Version"
+            default "1.0.0"
+            help
+                APP Version.
+    endmenu
+
 endmenu

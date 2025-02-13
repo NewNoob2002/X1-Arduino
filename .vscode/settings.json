@@ -9,6 +9,8 @@
     "idf.flashType": "UART",
     "files.associations": {
         "cstdlib": "c",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "chrono": "cpp",
+        "sdkconfig.h": "c"
     }
 }
