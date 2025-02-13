@@ -33,6 +33,7 @@ class HAL_ESP {
         void ConfigI2c();
         esp_err_t Write_BAT_Reg_Byte(uint8_t reg, const uint8_t value);
         esp_err_t Read_BAT_Reg_Byte(uint8_t reg, uint8_t *value, size_t len);
+        esp_err_t Update_Reg_Byte(uint8_t reg, uint8_t mask, uint8_t value);
         void ConfigSPI();
     private:
         // Private members and methods

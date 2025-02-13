@@ -470,6 +470,23 @@ esp_err_t HAL_ESP::Read_BAT_Reg_Byte(uint8_t reg, uint8_t *value, size_t len)
   return i2c_master_transmit_receive(i2c_Bat_handle, &reg, 1, value, len, 1000);
 }
 
+esp_err_t HAL_ESP::Update_Reg_Byte(uint8_t reg, uint8_t mask, uint8_t value)
+{
+  uint8_t old_value, new_value;
+
+  int rc = Read_BAT_Reg_Byte(reg, &old_value, 1);
+  if (rc != 0) {
+    return rc;
+  }
+
+  new_value = (old_value & ~mask) | (value & mask);
+  if (new_value == old_value) {
+    return 0;
+  }
+
+  return Write_BAT_Reg_Byte(reg, new_value);
+}
+
 void HAL_ESP::ConfigSPI()
 {
 }
