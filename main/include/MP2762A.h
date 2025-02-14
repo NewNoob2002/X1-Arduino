@@ -9,7 +9,7 @@ typedef struct {
     uint16_t ovp; // mV
   } MP2762A_config_t;
 
-int bq769x0_reg_update_byte(uint8_t reg, uint8_t mask, uint8_t value);
+int MP2762A_Configure(MP2762A_config_t config);
 
 
 #endif // MP2762A_H

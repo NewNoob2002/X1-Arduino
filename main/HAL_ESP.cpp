@@ -404,8 +404,8 @@ void HAL_ESP::ConfigPins()
 
   // pinMode(GNSS_PWREN_Pin, OUTPUT);
   // for enable BAT
-  // pinMode(MCU_BAT_POWER_Pin, OUTPUT);
-  // digitalWrite(MCU_BAT_POWER_Pin, HIGH);
+  pinMode(MCU_ON_OFF_BAT_POWER, OUTPUT);
+  digitalWrite(MCU_ON_OFF_BAT_POWER, HIGH);
   // 按键设置
 
   pinMode(GPIO_NUM_2, OUTPUT);

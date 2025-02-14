@@ -61,3 +61,63 @@
 
 //MP2762A配置
 
+int MP2762A_Configure(MP2762A_config_t config)
+{
+    ESP_LOGI("MP2762A", "MP2762A Start Configuring");
+
+    esp_err_t ret;
+    uint8_t cfg_val = 0;
+    //检测I2c通讯
+    ret = esp32.Read_BAT_Reg_Byte(MP2762A_REG_STAT, &cfg_val, 1);
+    if(ret != ESP_OK)
+    {
+        ESP_LOGE("MP2762A", "MP2762A I2C Communication Error");
+        return -1;
+    }
+
+    if(cfg_val != 0b00000000)
+    {
+        ESP_LOGE("MP2762A", "MP2762A I2C Communication Error");
+        return -1;
+    }
+
+    //Start Configure
+    //输入电流电压限制
+    //输入电压档位	推荐工作模式	输入功率	适配器能力	优先级
+    /*5V-3A	        Boost模式	    15W	        低功率	备用
+    9V-2.22A	    Buck模式	    20W	        中功率	首选
+    12V-1.67A	    Buck模式	    20W	        中功率	首选 */
+    //2.22A ≈ 1600mA + 400mA ；
+    uint8_t ic_ctl_1 = 0b00101110;
+    ret = esp32.Write_BAT_Reg_Byte(MP2762A_REG_IC_CTL_1, ic_ctl_1);
+    if(ret != ESP_OK)
+    {
+        ESP_LOGE("MP2762A", "ICC Configure Error");
+        return -1;
+    }
+    //8.8V = 8800mV = 0b01011000
+    uint8_t iv_ctl = 0b01011000;
+    ret = esp32.Write_BAT_Reg_Byte(MP2762A_REG_IV_CTL, iv_ctl);
+    if(ret != ESP_OK)
+    {
+        ESP_LOGE("MP2762A", "IVC Configure Error");
+        return -1;
+    }
+    //2A = 1600mA + 400mA = 0b00011000
+    uint8_t charge_ic = 0b00101000;
+    ret = esp32.Write_BAT_Reg_Byte(MP2762A_REG_CHARGE_Ic, charge_ic);
+    if(ret != ESP_OK)
+    {
+        ESP_LOGE("MP2762A", "Charge IC Configure Error");
+        return -1;
+    }
+    //
+    uint8_t pre_charge_ic = 0b00000000;
+    ret = esp32.Write_BAT_Reg_Byte(MP2762A_REG_PRE_CHARGE_Ic, pre_charge_ic);
+    if(ret != ESP_OK)
+    {
+        ESP_LOGE("MP2762A", "Pre Charge IC Configure Error");
+        return -1;
+    }
+    return 0;
+}

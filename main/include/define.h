@@ -58,38 +58,39 @@ static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 static const bool esp_spp_enable_l2cap_ertm = true;
 
 
-#define LCD 1
+#define LCD 0
 /*gpio 引脚定义*/
 
 #define FN_KEY                  GPIO_NUM_9
+#define Key_Power               39
 /*状态灯*/
-#define POWER_LED_Pin           7
-#define CHARGER_LED_Pin         8
-#define NET_LED_Pin             10
-#define GNSS_LED_Pin            11
-#define DATA_LED_Pin            12
+#define POWER_LED_Pin           27
+#define CHARGER_LED_Pin         14
+#define NET_LED_Pin             13
+#define GNSS_LED_Pin            15
+#define DATA_LED_Pin            2
 
-#define ESP32_BOOT_Pin          13
+#define ESP32_BOOT_Pin          0
 /*电台引脚*/
-#define Radio_Config_Pin        1
-#define Radio_RX_Pin            3
-#define Radio_TX_Pin            4
-#define Radio_PWR_Pin           14
+#define Radio_Config_Pin        34
+#define Radio_RX_Pin            32
+#define Radio_TX_Pin            33
+#define Radio_PWR_Pin           4
 /*gps模块串口引脚*/
-#define GNSS_PWREN_Pin          5
-#define MCU_98x_RX_Pin          15
+#define GNSS_PWREN_Pin          25
+#define MCU_98x_RX_Pin          17
 #define MCU_98x_TX_Pin          16
 /*BMS芯片输出引脚*/
-#define MP2762_ACOK_Pin         17
+#define MP2762_ACOK_Pin         5
 
 /*NAND flash 引脚*/
 #define SDIO_SCK_Pin            18
-#define SDIO_DI_Pin             19
-#define SDIO_DO_Pin             22
+#define SDIO_MISO_Pin           19
+#define SDIO_MOSI_Pin           23
 
 /*电池引脚*/
-#define Charge_Status_Pin       2
-#define MCU_BAT_POWER_Pin       6
+#define Charge_Status_Pin       35
+#define MCU_ON_OFF_BAT_POWER    26
 #define BAT_I2C_SDA_Pin         GPIO_NUM_21
 #define BAT_I2C_SCL_Pin         GPIO_NUM_22
 

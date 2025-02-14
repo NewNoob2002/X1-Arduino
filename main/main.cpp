@@ -29,21 +29,23 @@ extern "C" void app_main(void)
 
     esp32.Init_NVS();
     esp32.ConfigPins();
-    esp32.ConfigI2c();
-    esp32.wifi_Init();
-    esp32.Config_Server();
-    WIFI_STAT wifi_status = esp32.Start_Wifi();
-    if(wifi_status == WIFI_ERROR)
-    {
-        esp32.Wifi_ReStart();
-    }
+    vTaskDelay(1000);
+    digitalWrite(MCU_ON_OFF_BAT_POWER, LOW);
+    // esp32.ConfigI2c();
+    // esp32.wifi_Init();
+    // esp32.Config_Server();
+    // WIFI_STAT wifi_status = esp32.Start_Wifi();
+    // if(wifi_status == WIFI_ERROR)
+    // {
+    //     esp32.Wifi_ReStart();
+    // }
     while (1)
     {
         // ESP_LOGI("main", "wifi is %d", esp32.GetWifiStatus());
         // esp32.Start_Wifi_Task();
-        wifi_task();
-        vTaskDelay(1000);
-        esp32.Start_Server_Task();
+        // wifi_task();
+        // vTaskDelay(1000);
+        // esp32.Start_Server_Task();
         vTaskDelay(1000);
         //已经验证
         // update_partition = esp_ota_get_next_update_partition(NULL);
